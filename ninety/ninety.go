@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	ten1()
+
 }
 
 func one() {
@@ -229,7 +229,38 @@ func ten1() {
 	F1(q)
 }
 
-// Named 和 Unamed Types
+// 一、Named（命名类型） 和 Unamed Types（未命令类型/无名类型）
+// named types 有两类
+// 1. 内置的类型，如 int,int64,string,bool
+// 2. 用 type 关键字声明的类型，如 type Foo string
+// unamed types: 基于已有的 named types 声明出来的组合类型，如 struct{},[]string, interface{}, map[int]bool
+// named types 可以作为方法的接受者，unamed type 不能
+type Map map[string]string
+
+func (m Map) Set(key, value string) {
+	m[key] = value
+}
+
+// invalid receiver type map[string]string(map[string]string is an unnamed type)
+//func (m map[string]string)Set1(key string,values string){
+//m[key]=value
+//}
+
+// 二、底层类型
+// 每种类型 T 都有一个底层类型，如果 T 是预声明类型或者类型字面量，它的底层类型就是 T 本身；
+// 否则，T 的底层类型就是其类型声明中引用类型的底层类型
+type (
+	B1 string
+	B2 B1
+	B3 []B1
+	B4 B3
+)
+
+// string, B1 和 B2 的底层类型是 string；
+// []B1,B3 和 B4 的底层类型是 []B1
+// （判断类型是否相同）
+// 因此：所有基于相同 unmaned types 声明的变量类型都相同；
+// 而对于 named types 变量而言，即使它们的底层类型相同，它们也是不同类型
 
 var x struct{ I int } // unamed type
 
@@ -240,8 +271,90 @@ var y Fo                 // named type
 type Bar struct{ I int } // named type
 var z Bar                // named type
 func ten2() {
-	x = y
-	y = x
-	x = x2
-	x = z
+	x = y  // x 和 y 类型相同
+	y = x  // x 和 y 类型相同
+	x = x2 // x 和 x2 类型相同
+	x = z  // x 和 z 类型相同
+	// y= z // y 和 z 的类型不同
 }
+
+// 三、不同类型之间是不可以赋值的
+type MyInt int
+
+var i int = 2
+var i2 MyInt
+
+// i=12 （虽然它们的底层类型相同，但是它们是不同的类型）
+// 对于拥有相同底层类型的变量而言，还有一个概念是：可复制性。即：底层类型相同的两个变量可以赋值的条件是：至少有一个不是 unamed type
+// 即：在Go中，两个类型是否可以直接赋值，取决于它们的底层类型是否相同，以及它们是否都是命名类型
+// 如果两个类型具有相同的底层类型，并且至少其中一个是未命名类型，那么它们之间是可以相互赋值的。
+// 而如果两个都是命名类型，即使它们的底层类型相同，也不能直接赋值，除非它们是通过类型别名（type alias）定义的。
+
+// 四、关于类型继承
+// 当你使用 type 声明一个新类型后，它不会集成原有类型的方法集
+type User struct {
+	Name string
+}
+
+func (u *User) SetName(name string) {
+	u.Name = name
+}
+
+type Employee User
+
+func test1() {
+	//employee:=new(Employee)
+	//employee.SetName("jack")
+	//error employee.SetName undefined
+}
+
+// 一个编程小技巧：可以将原有类型作为一个匿名字段内嵌到 struct 当中继承它的方法
+
+type Employee1 struct {
+	User  // annonymous field
+	title string
+}
+
+func test2() {
+	employee := new(Employee1)
+	employee.SetName("jack")
+}
+
+type o = int // 类型别名
+type u int
+
+// 类型别名例外：类型别名与原类型视为同一类型，不受此限制。
+func test3() {
+	var o1 o
+	var u1 u
+	o1 = o(u1)
+	fmt.Println(o1)
+}
+
+// *******************************************
+// 总结如下：至少有一个是未命名类型
+// 在底层类型相同的情况下，只有参与赋值的类型中有一个是未命名的，则允许赋值。类型别名与原类型视为同一类型，不受此限制,允许赋值。
+// 具体示例：
+// 1. 命名类型 vs 未命名类型（允许赋值）
+type My []int
+
+var a1 My = []int{1}
+var b1 []int = a1
+
+// 2. 两个命名类型（禁止赋值）
+type c1 int
+type c2 int
+
+var c11 c1 = 1
+
+//c2=c1(不能赋值)
+
+// 3. 两个未命名类型（允许赋值）
+var a111 []int
+var b111 []int = a111
+
+// 4. 类型别名（允许赋值）
+type Myq = int
+
+var myq Myq = 10
+var myc = myq
