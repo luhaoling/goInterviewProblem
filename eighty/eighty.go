@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	ten2()
+	eight()
 }
 
 func one() {
